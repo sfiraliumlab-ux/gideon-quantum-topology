@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import json
 import matplotlib.pyplot as plt
+from quantum_proof import build_macroscopic_entanglement
 
 st.set_page_config(page_title="S-GPU: Квантовая Топология", layout="wide")
 st.title("Симуляция информационного всеединства (Семинар №884)")
@@ -17,25 +18,21 @@ class SfiralPhysicsEngine:
                 data = json.load(f)
                 return np.array([[n['x'], n['y'], n['z']] for n in data['nodes']])
         except FileNotFoundError:
-            # Генерация топологии Минковского-Сфирали
             theta = np.linspace(0, 8 * np.pi, 50000)
             z = np.linspace(-100, 100, 50000)
             r = z**2 + 1.618
             return np.column_stack((r * np.sin(theta), r * np.cos(theta), z))
 
     def compute_state(self, time_tick):
-        # Время как фрактальный процесс обновления графа
         phase_shift = np.abs(np.sin(time_tick)) * np.pi
         amplitudes = self.energy_base * np.sin(self.nodes[:, 2] * phase_shift)
         
-        # Расчет энтропии (Гравитационного сопротивления)
         sai_index = 1.0 - np.abs(np.sin(time_tick - np.pi/2))
         entropy = 1.0 - sai_index
         return amplitudes, sai_index, entropy
 
 engine = SfiralPhysicsEngine()
 
-# Время как тактовая частота
 time_tick = st.slider("Топологическое время (t)", 0.0, 3.1415, 1.5708, step=0.001)
 amplitudes, sai, entropy = engine.compute_state(time_tick)
 
@@ -58,4 +55,9 @@ st.pyplot(fig)
 
 if entropy < 0.001:
     st.success("СТАТУС: S-образный переход достигнут. Гравитация локально скомпенсирована.")
-    st.code("ЭКСПОРТ В IBM QUANTUM ГОТОВ", language="text")
+    
+    qasm_code = build_macroscopic_entanglement(sai)
+    
+    st.markdown("### Экспортный шлюз IBM Quantum")
+    st.code(qasm_code, language="qasm")
+    st.caption("Скопируйте этот код во вкладку QASM Editor в среде IBM Quantum Composer.")
