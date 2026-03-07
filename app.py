@@ -4,11 +4,9 @@ import json
 import matplotlib.pyplot as plt
 import time
 
-# --- Конфигурация интерфейса ---
 st.set_page_config(page_title="GIDEON: Верификация гипотез", layout="wide")
 st.title("Сфиральная топология: Информационный монизм (Семинар №884)")
 
-# --- Базовые вычислительные классы ---
 class SfiralEngine:
     def __init__(self, matrix_path="matrix.json"):
         self.nodes = self._load_nodes(matrix_path)
@@ -20,7 +18,7 @@ class SfiralEngine:
                 data = json.load(f)
                 return np.array([[n['x'], n['y'], n['z']] for n in data['nodes']])
         except FileNotFoundError:
-            # Математическая генерация истинной Сфирали (Антисимметрия + S-переход)
+            # Генерация строго по логике скрипта create_semicircle_sphiral()
             R_coil = 50.0
             R_arc = R_coil / 2.0
             Height_Coil = 30.0
@@ -29,9 +27,9 @@ class SfiralEngine:
             Resolution = 2500
 
             right_points = []
-            res_arc = int(Resolution * 0.3)
             
-            # Генерация S-дуги
+            # 1. S-инвертор (Полуокружность)
+            res_arc = int(Resolution * 0.3)
             for i in range(res_arc + 1):
                 t = i / res_arc
                 phi = np.pi * (1 - t)
@@ -40,7 +38,7 @@ class SfiralEngine:
                 z = (Height_S / 2) * t
                 right_points.append([x, y, z])
 
-            # Генерация основного витка
+            # 2. Основной виток (Круг с линейным смещением Z)
             res_coil = int(Resolution * 0.7)
             z_start_coil = Height_S / 2
             for i in range(1, res_coil + 1):
@@ -53,10 +51,9 @@ class SfiralEngine:
 
             right_points = np.array(right_points)
             
-            # Применение абсолютной антисимметрии для левой половины
+            # 3. Зеркальная антисимметрия (P_left = -P_right)
             left_points = -right_points[::-1]
             
-            # Сборка единого массива (исключая дублирование центральной точки)
             return np.vstack((left_points[:-1], right_points))
 
     def compute_state(self, phase_shift):
@@ -72,14 +69,12 @@ class QuantumSimulator:
 engine = SfiralEngine()
 q_sim = QuantumSimulator()
 
-# --- Развертывание вкладок ---
 tab1, tab2, tab3 = st.tabs([
     "Шаг 1: Компенсация гравитации (S-переход)", 
     "Шаг 2: Квантовое всеединство", 
     "Шаг 3: Топология времени"
 ])
 
-# --- Вкладка 1: Локальная гравитация ---
 with tab1:
     st.markdown("### Индукция фазового перехода матрицы")
     st.markdown("Изменение фазового сдвига управляет энтропией системы. При достижении абсолютного резонанса внутреннее сопротивление (гравитация) обнуляется.")
@@ -99,7 +94,7 @@ with tab1:
     fig1.patch.set_facecolor('#0E1117')
     ax1.set_facecolor('#0E1117')
     
-    # Визуализация точной геометрии Сфирали
+    # Визуализация 2D-проекции узлов
     ax1.scatter(engine.nodes[:, 0], engine.nodes[:, 1], c=amplitudes_t1, cmap='magma', s=1.0, alpha=0.9)
     ax1.axis('off')
     st.pyplot(fig1)
@@ -107,7 +102,6 @@ with tab1:
     if entropy_val < 0.001:
         st.success("ВЫВОД №1 ПОДТВЕРЖДЕН: Точка S-перехода достигнута. Диссипация отсутствует. Локальная гравитация скомпенсирована.")
 
-# --- Вкладка 2: Квантовое всеединство ---
 with tab2:
     st.markdown("### Макроскопическая голограмма и мгновенный обмен")
     st.markdown("Проверка гипотезы нулевой энергии самогравитирующей системы при сохранении информационной связности удаленных объектов (Земля-Луна).")
@@ -142,7 +136,6 @@ q0-q1 (Объект А) | q2-q3 (Объект Б)
         
     st.success("ВЫВОД №2 ПОДТВЕРЖДЕН: 100% корреляция связности между парами. Информационный обмен мгновенен. Энергетический баланс равен нулю (нулевая тепловая диссипация).")
 
-# --- Вкладка 3: Топология времени ---
 with tab3:
     st.markdown("### Время как направленный граф устранения энтропии")
     st.markdown("Время формализуется не как линейная ось $t$, а как цикличный процесс обновления фрактальной матрицы. При достижении абсолютного резонанса течение времени останавливается.")
