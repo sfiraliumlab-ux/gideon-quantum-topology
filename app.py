@@ -20,11 +20,44 @@ class SfiralEngine:
                 data = json.load(f)
                 return np.array([[n['x'], n['y'], n['z']] for n in data['nodes']])
         except FileNotFoundError:
-            # Резервная генерация матрицы, если JSON отсутствует
-            theta = np.linspace(0, 8 * np.pi, 20000)
-            z = np.linspace(-100, 100, 20000)
-            r = z**2 + 1.618
-            return np.column_stack((r * np.sin(theta), r * np.cos(theta), z))
+            # Математическая генерация истинной Сфирали (Антисимметрия + S-переход)
+            R_coil = 50.0
+            R_arc = R_coil / 2.0
+            Height_Coil = 30.0
+            Height_S = 10.0
+            Turns = 1.0
+            Resolution = 2500
+
+            right_points = []
+            res_arc = int(Resolution * 0.3)
+            
+            # Генерация S-дуги
+            for i in range(res_arc + 1):
+                t = i / res_arc
+                phi = np.pi * (1 - t)
+                x = R_arc + R_arc * np.cos(phi)
+                y = -R_arc * np.sin(phi)
+                z = (Height_S / 2) * t
+                right_points.append([x, y, z])
+
+            # Генерация основного витка
+            res_coil = int(Resolution * 0.7)
+            z_start_coil = Height_S / 2
+            for i in range(1, res_coil + 1):
+                t = i / res_coil
+                theta = Turns * 2 * np.pi * t
+                x = R_coil * np.cos(theta)
+                y = R_coil * np.sin(theta)
+                z = z_start_coil + (Height_Coil * t)
+                right_points.append([x, y, z])
+
+            right_points = np.array(right_points)
+            
+            # Применение абсолютной антисимметрии для левой половины
+            left_points = -right_points[::-1]
+            
+            # Сборка единого массива (исключая дублирование центральной точки)
+            return np.vstack((left_points[:-1], right_points))
 
     def compute_state(self, phase_shift):
         amplitudes = self.energy_base * np.sin(self.nodes[:, 2] * phase_shift)
@@ -32,7 +65,6 @@ class SfiralEngine:
 
 class QuantumSimulator:
     def get_entanglement_data(self):
-        # Верифицированные данные симулятора IBM Quantum
         states = ["0000", "0011", "1100", "1111"]
         probs = [25.78, 23.83, 24.71, 25.68]
         return states, probs
@@ -54,7 +86,6 @@ with tab1:
     
     phase_input = st.slider("Фазовый сдвиг (Напряжение витков)", 0.0, 3.1415, 0.5, step=0.01)
     
-    # Математика S-перехода
     sai_val = 1.0 - np.abs(np.sin(phase_input - np.pi/2))
     entropy_val = 1.0 - sai_val
     amplitudes_t1 = engine.compute_state(phase_input)
@@ -67,7 +98,9 @@ with tab1:
     fig1, ax1 = plt.subplots(figsize=(12, 4))
     fig1.patch.set_facecolor('#0E1117')
     ax1.set_facecolor('#0E1117')
-    ax1.scatter(engine.nodes[:, 0], engine.nodes[:, 1], c=amplitudes_t1, cmap='magma', s=0.1, alpha=0.9)
+    
+    # Визуализация точной геометрии Сфирали
+    ax1.scatter(engine.nodes[:, 0], engine.nodes[:, 1], c=amplitudes_t1, cmap='magma', s=1.0, alpha=0.9)
     ax1.axis('off')
     st.pyplot(fig1)
     
@@ -141,7 +174,7 @@ with tab3:
                 fig3, ax3 = plt.subplots(figsize=(12, 4))
                 fig3.patch.set_facecolor('#0E1117')
                 ax3.set_facecolor('#0E1117')
-                ax3.scatter(engine.nodes[:, 0], engine.nodes[:, 1], c=amp_t3, cmap='viridis', s=0.1, alpha=0.9)
+                ax3.scatter(engine.nodes[:, 0], engine.nodes[:, 1], c=amp_t3, cmap='viridis', s=1.0, alpha=0.9)
                 ax3.axis('off')
                 chart_box.pyplot(fig3)
                 plt.close(fig3)
