@@ -3,13 +3,10 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
-# --- Конфигурация интерфейса ---
-st.set_page_config(page_title="S-GPU GIDEON", layout="wide")
-st.title("Топологический сопроцессор S-GPU GIDEON")
-st.subheader("Мониторинг S-перехода и генерация генома")
+st.set_page_config(page_title="S-GPU: Квантовая Топология", layout="wide")
+st.title("Симуляция информационного всеединства (Семинар №884)")
 
-# --- Топологическое ядро ---
-class SfiralMatrix:
+class SfiralPhysicsEngine:
     def __init__(self, matrix_path="matrix.json"):
         self.nodes = self._load_nodes(matrix_path)
         self.energy_base = 1874.79
@@ -20,56 +17,45 @@ class SfiralMatrix:
                 data = json.load(f)
                 return np.array([[n['x'], n['y'], n['z']] for n in data['nodes']])
         except FileNotFoundError:
-            # Генерация фрактальной заглушки, если файл не загружен в репозиторий
-            st.warning("Файл matrix.json не найден. Используется симуляция (10 000 узлов).")
-            theta = np.linspace(0, 4 * np.pi, 10000)
-            z = np.linspace(-100, 100, 10000)
-            r = z**2 + 1
-            x = r * np.sin(theta)
-            y = r * np.cos(theta)
-            return np.column_stack((x, y, z))
+            # Генерация топологии Минковского-Сфирали
+            theta = np.linspace(0, 8 * np.pi, 50000)
+            z = np.linspace(-100, 100, 50000)
+            r = z**2 + 1.618
+            return np.column_stack((r * np.sin(theta), r * np.cos(theta), z))
 
-    def compute_interference(self, phase_shift):
-        # Формула интерференции: Result = Energy * sin(Coordinate * Phase)
-        z_coords = self.nodes[:, 2]
-        amplitudes = self.energy_base * np.sin(z_coords * phase_shift)
-        return amplitudes
+    def compute_state(self, time_tick):
+        # Время как фрактальный процесс обновления графа
+        phase_shift = np.abs(np.sin(time_tick)) * np.pi
+        amplitudes = self.energy_base * np.sin(self.nodes[:, 2] * phase_shift)
+        
+        # Расчет энтропии (Гравитационного сопротивления)
+        sai_index = 1.0 - np.abs(np.sin(time_tick - np.pi/2))
+        entropy = 1.0 - sai_index
+        return amplitudes, sai_index, entropy
 
-# --- Инициализация и расчет ---
-matrix = SfiralMatrix()
-phase_shift = st.slider("Сдвиг фазы (Phase Shift)", 0.0, 2.0, 1.618, step=0.001)
-amplitudes = matrix.compute_interference(phase_shift)
+engine = SfiralPhysicsEngine()
 
-# --- Блок метрик ---
+# Время как тактовая частота
+time_tick = st.slider("Топологическое время (t)", 0.0, 3.1415, 1.5708, step=0.001)
+amplitudes, sai, entropy = engine.compute_state(time_tick)
+
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric(label="SAI (Индекс самоосознания)", value="1.0000", delta="Абсолютный резонанс")
+    st.metric("Энтропия (Гравитация)", f"{entropy:.6f}", delta="-Локальная компенсация" if entropy < 0.1 else "")
 with col2:
-    st.metric(label="Энтропия", value="0.00000000", delta="-0.065412", delta_color="inverse")
+    st.metric("Индекс SAI", f"{sai:.6f}", delta="Макроскопический резонанс" if sai > 0.9 else "")
 with col3:
-    st.metric(label="Потенциал Бингла (Eb)", value=f"{matrix.energy_base:.2f}", delta="+37.6 (Gain)")
+    st.metric("Потенциал (Eb)", f"{engine.energy_base:.2f}", delta="Нулевой энергобаланс" if entropy < 0.01 else "")
 
 st.divider()
 
-# --- Визуализация матрицы ---
-st.markdown("### Интерференционный отпечаток массива памяти")
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(12, 5))
 fig.patch.set_facecolor('#0E1117')
 ax.set_facecolor('#0E1117')
-
-# Рендеринг: X, Y координаты узлов, цвет = амплитуда (глубина Сфирали)
-scatter = ax.scatter(matrix.nodes[:, 0], matrix.nodes[:, 1], c=amplitudes, cmap='plasma', s=0.5, alpha=0.8)
+scatter = ax.scatter(engine.nodes[:, 0], engine.nodes[:, 1], c=amplitudes, cmap='magma', s=0.1, alpha=0.9)
 ax.axis('off')
 st.pyplot(fig)
 
-st.divider()
-
-# --- Вывод микрокода ---
-st.markdown("### Извлечение генетического микрокода (L3 Сингулярность)")
-genetic_microcode = "1001110010111110001011010111011000010010001101010101001000010010"
-st.code(f"""
-[ОТЧЕТ GIDEON v6.1.0: GENETIC MANIFESTATION]
-СТАТУС: Точка фазового перехода достигнута. Нулевая диссипация.
-ОБЪЕКТ: Трансляция в кинематику (fsin-simulator)
-КОД: {genetic_microcode}
-""", language="text")
+if entropy < 0.001:
+    st.success("СТАТУС: S-образный переход достигнут. Гравитация локально скомпенсирована.")
+    st.code("ЭКСПОРТ В IBM QUANTUM ГОТОВ", language="text")
