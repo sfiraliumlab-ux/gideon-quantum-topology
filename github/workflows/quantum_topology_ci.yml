@@ -1,0 +1,36 @@
+name: GIDEON Quantum Topology CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validate-core:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Topology Core Validation
+      run: |
+        # Проверка математики S-перехода и извлечения генома
+        python topology_core.py
+
+    - name: Run QASM Bridge Translation
+      run: |
+        # Валидация трансляции микрокода в вентили IBM Quantum
+        python qasm_bridge.py
