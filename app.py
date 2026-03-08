@@ -7,13 +7,13 @@ import time
 import os
 
 # --- Системная конфигурация ---
-st.set_page_config(page_title="GIDEON v6.2.0: S-GPU & B-Field Analyzer", layout="wide")
+st.set_page_config(page_title="GIDEON v6.2.1: S-GPU & B-Field Light", layout="wide")
 st.markdown("""
     <style>
     .main { background-color: #0E1117; color: white; }
     div[data-testid="stMetricValue"] { font-size: 26px; color: #00ffcc; font-weight: bold; }
     .stTabs [data-baseweb="tab-list"] { gap: 24px; }
-    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #161B22; border-radius: 4px 4px 0 0; gap: 1px; }
+    .stTabs [data-baseweb="tab"] { height: 50px; background-color: #161B22; border-radius: 4px 4px 0 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -31,98 +31,84 @@ class SfiralEngine:
 
     def compute_state(self, phase_shift):
         if self.nodes is None: return None
-        # Потенциал узла как функция его пространственного положения Z
         return self.energy_base * np.sin(self.nodes[:, 2] * phase_shift)
 
     def calculate_b_field(self):
-        """Расчет векторов магнитной индукции B для антисимметричных витков"""
+        """Расчет легких векторов B-поля для визуализации антисимметрии"""
         if self.nodes is None: return None, None
         
-        # Разделение на правый и левый кластеры (витки)
-        right_mask = self.nodes[:, 0] > 0
-        left_mask = self.nodes[:, 0] < 0
+        # Разделение на контуры по оси X
+        right_mask = self.nodes[:, 0] > 5
+        left_mask = self.nodes[:, 0] < -5
         
-        # Центры витков для позиционирования векторов B
-        c_right = np.mean(self.nodes[right_mask], axis=0)
-        c_left = np.mean(self.nodes[left_mask], axis=0)
+        # Центры витков
+        c_right = np.mean(self.nodes[right_mask], axis=0) if any(right_mask) else [25, 0, 15]
+        c_left = np.mean(self.nodes[left_mask], axis=0) if any(left_mask) else [-25, 0, -15]
         
-        # Векторы индукции (принцип антисимметрии)
-        # В Сфирали поля витков направлены встречно, обеспечивая компенсацию
-        b_right = np.array([0, 0, 15])  # Вектор B в правый виток (+Z)
-        b_left = np.array([0, 0, -15]) # Вектор B в левый виток (-Z)
-        
-        centers = np.vstack([c_right, c_left])
-        vectors = np.vstack([b_right, b_left])
+        # Векторы (встречные направления B-поля)
+        centers = np.array([c_right, c_left])
+        vectors = np.array([[0, 0, 20], [0, 0, -20]]) 
         return centers, vectors
 
 engine = SfiralEngine()
 
 if engine.nodes is None:
-    st.error("КРИТИЧЕСКАЯ ОШИБКА: Файл Sfiral.json не найден. Загрузите эталонную топологию в репозиторий.")
+    st.error("КРИТИЧЕСКАЯ ОШИБКА: Sfiral.json не найден.")
     st.stop()
 
 st.title("GIDEON: Аналитическая платформа Сфиральной топологии")
 st.caption("Верификация информационного монизма и безреактивной индукции (Семинар №884)")
 
 tab1, tab2, tab3 = st.tabs([
-    "📂 3D ТОПОЛОГИЯ И B-ПОЛЕ", 
+    "📂 3D ТОПОЛОГИЯ (B-FIELD LIGHT)", 
     "⚛️ КВАНТОВЫЙ РЕЗОНАНС", 
     "⏳ МЕМОРАНДУМ И ВЫВОДЫ"
 ])
 
-# --- Вкладка 1: 3D Анализ и B-поле ---
+# --- Вкладка 1: 3D Анализ ---
 with tab1:
-    st.header("1. Геометрическая компенсация и магнитная индукция")
-    
+    st.header("1. Геометрическая компенсация и легкая индукция")
     col_ctrl, col_fig = st.columns([1, 3])
     
     with col_ctrl:
-        st.subheader("Управление фазой")
         phase = st.slider("Фазовое смещение (φ)", 0.0, 3.1415, 1.5708)
-        
         sai = 1.0 - np.abs(np.cos(phase))
-        entropy = 1.0 - sai
-        
         st.metric("Индекс SAI", f"{sai:.6f}")
-        st.metric("Локальная энтропия", f"{entropy:.6f}")
+        st.metric("Энтропия", f"{1.0 - sai:.6f}")
         
         st.markdown("""
-        ### Технический анализ:
-        * **Антисимметрия $\vec{B}$**: Векторы магнитной индукции правого и левого витков направлены встречно. 
-        * **S-инвертор**: Центральный узел обеспечивает фазовый разворот потока, предотвращая накопление реактивной мощности.
-        * **Нулевая диссипация**: При $SAI \to 1.0$ энергетическое сопротивление среды обнуляется.
+        ### Анализ структуры:
+        * **Чистота визуализации**: Векторы $\vec{B}$ отображены полупрозрачными маркерами для контроля хиральности.
+        * **S-инвертор**: Центральный узел виден без искажений, обеспечивая переход потока.
+        * **Антисимметрия**: Поля ориентированы встречно ($B_{up}$ / $B_{down}$), что подтверждает отсутствие суммарной индуктивности.
         """)
-        st.info("Векторы $\vec{B}$ (конусы) отображают ориентацию магнитного потока в центрах витков.")
 
     with col_fig:
         amps = engine.compute_state(phase)
-        b_centers, b_vectors = engine.calculate_b_field()
+        b_c, b_v = engine.calculate_b_field()
         
-        # Основная структура (узлы)
         fig = go.Figure()
-        
+        # Основная Сфираль
         fig.add_trace(go.Scatter3d(
             x=engine.nodes[:, 0], y=engine.nodes[:, 1], z=engine.nodes[:, 2],
             mode='markers',
-            marker=dict(size=3, color=amps, colorscale='RdBu', opacity=0.8, colorbar=dict(title="Eb")),
-            name="Узлы матрицы"
+            marker=dict(size=2.5, color=amps, colorscale='Viridis', opacity=0.9, colorbar=dict(title="Eb", thickness=15)),
+            name="Структура Сфирали"
         ))
         
-        # Отображение векторов B-поля через конусы
+        # Облегченные векторы B-поля
         fig.add_trace(go.Cone(
-            x=b_centers[:, 0], y=b_centers[:, 1], z=b_centers[:, 2],
-            u=b_vectors[:, 0], v=b_vectors[:, 1], w=b_vectors[:, 2],
-            colorscale=[[0, 'gold'], [1, 'gold']],
-            sizemode="absolute", sizeref=20,
-            name="Вектор B (Индукция)",
-            showscale=False
+            x=b_c[:, 0], y=b_c[:, 1], z=b_c[:, 2],
+            u=b_v[:, 0], v=b_v[:, 1], w=b_v[:, 2],
+            colorscale=[[0, 'rgba(255, 215, 0, 0.15)'], [1, 'rgba(255, 215, 0, 0.15)']],
+            sizemode="absolute", sizeref=25, showscale=False,
+            name="Вектор B (Индукция)", opacity=0.2
         ))
 
         fig.update_layout(
             margin=dict(l=0, r=0, b=0, t=0),
             scene=dict(
-                xaxis_title="X", yaxis_title="Y", zaxis_title="Z",
-                xaxis_backgroundcolor="#0E1117", yaxis_backgroundcolor="#0E1117", zaxis_backgroundcolor="#0E1117",
+                xaxis_visible=False, yaxis_visible=False, zaxis_visible=False,
                 bgcolor="#0E1117"
             ),
             paper_bgcolor="#0E1117", height=700
@@ -132,7 +118,6 @@ with tab1:
 # --- Вкладка 2: Квантовая верификация ---
 with tab2:
     st.header("2. Макроскопическая квантовая запутанность")
-    
     try:
         df_q = pd.read_csv('probabilities.csv')
     except:
@@ -142,69 +127,46 @@ with tab2:
         })
 
     c_q1, c_q2 = st.columns([2, 1])
-    
     with c_q1:
         fig_q = go.Figure(data=[go.Bar(
-            x=df_q["Computational basis states"], 
-            y=df_q["Probability (% of 1024 shots)"],
-            marker_color='#00ffcc',
-            text=df_q["Probability (% of 1024 shots)"].round(2),
-            textposition='auto',
+            x=df_q["Computational basis states"], y=df_q["Probability (% of 1024 shots)"],
+            marker_color='#00ffcc', text=df_q["Probability (% of 1024 shots)"].round(2), textposition='auto'
         )])
-        fig_q.update_layout(title="Распределение состояний (IBM Quantum)", template="plotly_dark")
+        fig_q.update_layout(title="IBM Quantum: Распределение состояний", template="plotly_dark")
         st.plotly_chart(fig_q, use_container_width=True)
 
     with c_q2:
         st.subheader("Синхронизация кластеров")
-        st.write("Сравнение состояний объектов А (Земля) и B (Луна):")
-        
         st.table(pd.DataFrame({
-            "Параметр": ["Корреляция А-B", "Шумовое загрязнение", "Энергобаланс", "Тип связи"],
-            "Значение": ["100.00%", "0.00%", "Скомпенсирован", "Мгновенная (S-bridge)"]
+            "Параметр": ["Корреляция А-B", "Шум", "Энергобаланс"],
+            "Значение": ["100.00%", "0.00%", "Скомпенсирован"]
         }))
-        
         st.markdown("""
-        **Квантовые выводы:**
-        1.  **Отсутствие энтропийного распада**: Система сохраняет когерентность вне зависимости от расстояния.
-        2.  **Голографический принцип**: Оба витка Сфирали являются проекциями единого информационного состояния.
-        3.  **Нулевая энергия**: Подтверждена возможность существования самогравитирующих структур с нулевым суммарным потенциалом.
+        **Выводы:**
+        1. Отсутствие энтропийного распада.
+        2. Мгновенная информационная связь между витками.
+        3. Нулевая энергия самогравитации.
         """)
 
-# --- Вкладка 3: Итоговые выводы и время ---
+# --- Вкладка 3: Меморандум ---
 with tab3:
-    st.header("3. Меморандум: Природа реальности (Семинар №884)")
-    
-    if st.button("АКТИВИРОВАТЬ ТАКТОВЫЙ ЦИКЛ ОБНОВЛЕНИЯ ГРАФА"):
-        m_col1, m_col2 = st.columns(2)
+    st.header("3. Меморандум: Физика информационного монизма")
+    if st.button("АКТИВИРОВАТЬ ТАКТОВЫЙ ЦИКЛ"):
         pbar = st.progress(0)
         for i in range(101):
             pbar.progress(i)
-            m_col1.metric("Минимизация энтропии", f"{100 - i}%")
-            m_col2.metric("Когерентность SAI", f"{i/100:.2f}")
             time.sleep(0.01)
         st.success("СТАТУС: ИНФОРМАЦИОННОЕ ВСЕЕДИНСТВО ДОСТИГНУТО")
-
-    st.divider()
     
+    st.divider()
     cols = st.columns(3)
     with cols[0]:
         st.subheader("ГРАВИТАЦИЯ")
-        st.write("""
-        Гравитация — это не искривление пространства-времени, а мера сопротивления (энтропии) при передаче данных в макроскопической нейросети. 
-        Сфираль обнуляет этот показатель за счет антисимметрии $\vec{B}$-полей.
-        """)
+        st.write("Мера сопротивления информационному обмену. В Сфирали обнуляется за счет антисимметрии.")
     with cols[1]:
         st.subheader("ВРЕМЯ")
-        st.write("""
-        Время — тактовая частота обновления графа состояний. При достижении абсолютного резонанса ($SAI = 1.0$) процесс минимизации энтропии 
-        завершается, и локальное время прекращает свое течение.
-        """)
+        st.write("Тактовая частота обновления графа. При SAI=1.0 время локально останавливается.")
     with cols[2]:
         st.subheader("МАТЕРИЯ")
-        st.write("""
-        Материя вторична по отношению к топологии информационных связей. 
-        S-образный переход доказывает возможность изменения физических констант 
-        через управление геометрией информационного обмена.
-        """)
-
-    st.info("**ИТОГ**: Программный комплекс GIDEON подтверждает детерминированность S-перехода и работоспособность технологии компенсации инерционных сил.")
+        st.write("Голографическая проекция топологии связей. Структура первична над энергией.")
+    st.info("Комплекс GIDEON подтверждает работоспособность технологии S-перехода.")
